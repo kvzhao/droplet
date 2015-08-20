@@ -1,0 +1,66 @@
+# shell-script
+1 0 GfsSimulation GfsBox GfsGEdge {} {
+Time { end=6.0 }
+   Global {
+      #define D0           0.0028
+      #define V0           4.2
+      #define RHO_L        996.
+      #define RHO_G        1.2
+      #define MU_L        8e-4
+      #define MU_G        1.7e-5
+      #define sigma_L     71.22e-3
+      #define Re    14641.2
+      #define We    690.74
+      #define Fr    242.2
+      #define H 2
+      #define radius   .05
+      #define filmH H*radius
+      #define epsilon 1e-2
+      #define var(T,min,max) (CLAMP(T,0,1)*(max-min)+min)
+      #define rho(T) var(T,RHO_G/RHO_L,1.)
+      #define mu(T)  var(T,MU_G/MU_L,1.)
+      #define level 7
+}
+
+Refine level
+
+ProjectionParams { tolerance = 1e-6 }
+ApproxProjectionParams { tolerance = 1e-6 }
+
+VariableTracerVOF T
+VariableFiltered T1 T 1
+
+VariableCurvature K T Kmax
+
+InitFraction T ({
+   double drop = sphere(0, -.5+radius+filmH+epsilon, 0, radius);
+   double film = y + (.5-filmH);
+   return -union(drop,film);
+})
+
+Init{} { V = ( y > -0.5 ? -T : 0.)}
+
+PhysicalParams{ alpha=1./rho(T1) }
+SourceViscosity (2.*radius*mu(T1))/(Re*rho(T1))
+SourceTension T 2.*radius/We K
+
+# we need the gravity
+Source V -1./(2.*radius*Fr)
+
+AdaptVorticity {istep = 1 } {cmax=1e-2 maxlevel=level }
+AdaptGradient  {istep = 1 } {cmax=1e-3 maxlevel=level } T
+
+OutputScalarSum { istep = 1 } k { v = Velocity2*rho(T1) }
+OutputScalarSum { istep = 1 } t { v = T }
+
+OutputSimulation { istep = 20 } splash%05ld.gfs
+OutputSimulation { istep = 20 } simu%05ld.vtk { format = VTK }
+
+OutputTime { istep = 20 } stderr
+
+}
+GfsBox {
+  top = BoundaryOutflow
+  left = Boundary
+  right = Boundary
+}
