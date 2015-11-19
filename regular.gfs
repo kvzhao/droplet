@@ -54,8 +54,9 @@ AdaptGradient  {istep = 1 } {cmax=1e-3 maxlevel=level } T
 OutputScalarSum { istep = 1 } k { v = Velocity2*rho(T1) }
 OutputScalarSum { istep = 1 } t { v = T }
 
-OutputSimulation { istep = 20 } splash%05ld.gfs
-OutputSimulation { istep = 20 } simu%05ld.vtk { format = VTK }
+OutputSimulation { istep = 20 } res%08ld.gfs
+OutputSimulation { istep = 20 } animation%08ld.vtk { format = VTK }
+OutputSimulation { istep = 20 } data%08ld.dat { format = text}
 
 OutputTime { istep = 20 } stderr
 
