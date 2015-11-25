@@ -1,0 +1,69 @@
+# Gerris Script of Droplet impact on pool
+1 0 GfsSimulation GfsBox GfsGEdge {} {
+Time {end = DURATION}
+   Define RHO_L        1178.
+   Define RHO_G        1.2
+   Define MU_L         18.8e-3
+   Define MU_G         1.824e-5
+   Define SIGMA_L      65e-3
+   Define G            9.81
+   Define Re RHO_L*V0*D0/MU_L 
+   Define We RHO_L*V0*V0*D0/SIGMA_L
+   Define Fr V0*V0/G/D0 
+   Define H 5*D0
+   Define radius  D0/2
+   Define ellipse_ratio 0.7
+   Define pool_depth 2*D0
+   Define epsilon 1e-5
+   Define var(T,min,max) (CLAMP(T,0,1)*(max-min)+min)
+   Define rho(T) var(T,RHO_G/RHO_L,1.)
+   Define mu(T)  var(T,MU_G/MU_L,1.)
+
+# Solver parameters
+Refine LEVEL
+ProjectionParams { tolerance = 1e-6 }
+ApproxProjectionParams { tolerance = 1e-6 }
+
+VariableTracerVOF T
+VariableFiltered T1 T 1
+VariableCurvature K T Kmax
+
+PhysicalParams {L = H}
+InitFraction T ({
+   double drop = ellipse(-.5 * H, -.5 * H + pool_depth + 0.52 * D0, radius, ellipse_ratio * radius);
+   double film = y + (.5 * H - pool_depth);
+   return -union(drop, film);
+})
+
+Init{} { V = ( y > -0.5 * H ? -T : 0.)}
+EventBalance { istep = 1 } 0.1
+
+PhysicalParams{ alpha = 1./rho(T1) }
+SourceViscosity (D0*mu(T1))/(Re*rho(T1))
+SourceTension T D0/We K
+Source V -1./(2.*radius*Fr)
+
+AdaptVorticity {istep = 1 } {cmax=1e-2 maxlevel=LEVEL}
+AdaptGradient  {istep = 1 } {cmax=1e-3 maxlevel=LEVEL} T
+
+# export the numerical data
+# OutputScalarSum { istep = 1 } k { v = Velocity2*rho(T1) }
+# OutputScalarSum { istep = 1 } t { v = T }
+
+# Save gfs and vtk which can be visualized
+OutputSimulation {istep = 20} results/CASE/res_%08ld.gfs
+# video
+OutputPPM { istep = 2 } { ppm2mpeg > results/CASE/tracer.mpg } {
+      min = 0 max = 1 v = T
+}
+#OutputSimulation { istep = 20 } animat_%08ld.vtk {format = VTK }
+OutputSimulation { istep = 20 } numerics/CASE/data_%08ld.dat {format = text}
+
+OutputTime {istep = 20} stderr
+
+}
+GfsBox {
+  top = BoundaryOutflow
+  left = Boundary
+  right = Boundary
+}
